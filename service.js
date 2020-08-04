@@ -360,5 +360,3 @@ module.exports = new function() {
   return this;
 
 }();
-
-
