@@ -28,6 +28,21 @@ module.exports = new function() {
     channelSecretKey: 'E8o0mFWFoAXt2VvChO8v6nhpXQd5QJLG',
     channelUrl: 'https://idcs-oda-cbd6018d8c9849979fac514afa42c1d5-da2.data.digitalassistant.oci.oraclecloud.com/connectors/v2/listeners/webhook/channels/4162c19b-5b06-49ec-ba95-a5a2e3a2d50c'
   };
+  
+  if (!this.$request.getAccessToken()) {
+        this.$alexaSkill.showAccountLinkingCard();
+        this.tell('Please link you Account');
+    } else {
+        const token = this.$request.getAccessToken();
+        // API request
+        const { data } = await HttpService.get('https://dev-surbhi.us.auth0.com/userinfo/', {
+            headers: {
+                authorization: 'Bearer ' + token,
+            },
+        });
+
+        return this.tell(`${data.name}, ${data.email}`);  // Output: Kaan Kilic, email@jovo.tech
+    };
 
   this.randomIntInc = function (low, high) {
     return Math.floor(Math.random() * (high - low + 1) + low);
@@ -42,27 +57,14 @@ module.exports = new function() {
     webhookUtil.messageToBotWithProperties(channelUrl, channelSecretKey, userId, messagePayload, additionalProperties, callback);
   };
   
-  async LAUNCH() {
+ /* async LAUNCH() {
     /*
     Checks if there is an access token. 
     No access token -> Ask the user to sign in
     If there is one -> API call to access user data 
-    */
-    if (!this.$request.getAccessToken()) {
-        this.$alexaSkill.showAccountLinkingCard();
-        this.tell('Please link you Account');
-    } else {
-        const token = this.$request.getAccessToken();
-        // API request
-        const { data } = await HttpService.get('https://dev-surbhi.us.auth0.com/userinfo/', {
-            headers: {
-                authorization: 'Bearer ' + token,
-            },
-        });
-
-        return this.tell(`${data.name}, ${data.email}`);  // Output: Kaan Kilic, email@jovo.tech
-    }
-};
+    
+    
+};*/
 
   this.init= function (config) {
 
