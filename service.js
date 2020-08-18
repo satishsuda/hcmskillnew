@@ -41,6 +41,28 @@ module.exports = new function() {
   this.sendWebhookMessageToBot= function (channelUrl, channelSecretKey, userId, messagePayload, additionalProperties, callback) {
     webhookUtil.messageToBotWithProperties(channelUrl, channelSecretKey, userId, messagePayload, additionalProperties, callback);
   };
+  
+  async LAUNCH() {
+    /*
+    Checks if there is an access token. 
+    No access token -> Ask the user to sign in
+    If there is one -> API call to access user data 
+    */
+    if (!this.$request.getAccessToken()) {
+        this.$alexaSkill.showAccountLinkingCard();
+        this.tell('Please link you Account');
+    } else {
+        const token = this.$request.getAccessToken();
+        // API request
+        const { data } = await HttpService.get('https://dev-surbhi.us.auth0.com/userinfo/', {
+            headers: {
+                authorization: 'Bearer ' + token,
+            },
+        });
+
+        return this.tell(`${data.name}, ${data.email}`);  // Output: Kaan Kilic, email@jovo.tech
+    }
+};
 
   this.init= function (config) {
 
