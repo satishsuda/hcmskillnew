@@ -198,11 +198,10 @@ module.exports = new function() {
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
                 //New Added by Surbhi S
-                const userName = await client.getProfileName();
-                const userEmail = await client.getProfileEmail();
+                const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+                const profileEmail = await upsServiceClient.getProfileEmail();
                 
-                logger.info('Name successfully retrieved '+ userName);
-                logger.info('Email successfully retrieved '+ userEmail);
+                logger.info('Email successfully retrieved '+ profileEmail);
                 
                 //New Added by Surbhi E
                 if (!respondedToAlexa) {
