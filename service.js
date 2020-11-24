@@ -197,6 +197,14 @@ module.exports = new function() {
                 logger.info('Received callback message from webhook channel');
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
+                //New Added by Surbhi S
+                const userName = await client.getProfileName();
+                const userEmail = await client.getProfileEmail();
+                
+                logger.info('Name successfully retrieved '+ userName);
+                logger.info('Email successfully retrieved '+ userEmail);
+                
+                //New Added by Surbhi E
                 if (!respondedToAlexa) {
                   navigableResponseToAlexa(resp);
                 } else {
