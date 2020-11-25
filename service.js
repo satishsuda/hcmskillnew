@@ -16,15 +16,52 @@ const MessageModel = OracleBot.Lib.MessageModel;
 const messageModelUtil = OracleBot.Util.MessageModel;
 const botUtil = OracleBot.Util.Text;
 const webhookUtil = OracleBot.Util.Webhook;
-
+///
+const Alexa1 = require('ask-sdk');
+const LaunchRequestHandler = {
+  canHandle(handlerInput) {
+    return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
+  },
+  async handle(handlerInput) {
+    const PERMISSIONS = [
+      'alexa::profile:email:read'
+    ];
+    const { responseBuilder, serviceClientFactory } = handlerInput;
+    try {
+      const upsServiceClient = serviceClientFactory.getUpsServiceClient();  
+      const email = await upsServiceClient.getProfileEmail();        
+ 
+      const speechText = 'email address' + email;
+      return handlerInput.responseBuilder
+      .speak(speechText)
+      .getResponse();
+    } catch (error) {
+      if (error.name == 'ServiceError') {
+        console.log('ERROR StatusCode:' + error.statusCode + ' ' + error.message);
+      }
+      return responseBuilder
+        .speak(error.message)
+        .withAskForPermissionsConsentCard(PERMISSIONS)
+        .getResponse();
+    }
+  },
+};
+const skillBuilder = Alexa1.SkillBuilders.custom();
+exports.handler = skillBuilder
+  .addRequestHandlers(
+    LaunchRequestHandler
+  )
+  .withApiClient(new Alexa.DefaultApiClient())
+  .lambda();
+/////
 /*Added by Surbhi*/
-const APP_NAME = "leo new";
+/*const APP_NAME = "leo new";
 const messages = {
   NOTIFY_MISSING_PERMISSIONS: 'Please enable profile permissions in the Amazon Alexa app.',
   ERROR: 'Uh Oh. Looks like something went wrong.'
 };
 
-const EMAIL_PERMISSION = "alexa::profile:email:read";
+const EMAIL_PERMISSION = "alexa::profile:email:read";*/
 /*Added by Surbhi*/
 
 module.exports = new function() {
@@ -212,11 +249,11 @@ module.exports = new function() {
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
                 //New Added by Surbhi S
-                const { serviceClientFactory, responseBuilder } = handlerInput;
+               /* const { serviceClientFactory, responseBuilder } = handlerInput;
     
       const upsServiceClient = serviceClientFactory.getUpsServiceClient();
       const profileEmail = await upsServiceClient.getProfileEmail();
-     logger.info('Email:', profileEmail);
+     logger.info('Email:', profileEmail);*/
       //const speechResponse = `Your email is, ${profileEmail}`;
                 //New Added by Surbhi E
                 if (!respondedToAlexa) {
