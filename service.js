@@ -47,13 +47,7 @@ const LaunchRequestHandler = {
     }
   },
 };
-const skillBuilder = Alexa1.SkillBuilders.custom();
-exports.handler = skillBuilder
-  .addRequestHandlers(
-    LaunchRequestHandler
-  )
-  .withApiClient(new Alexa.DefaultApiClient())
-  .lambda();
+
 /////
 /*Added by Surbhi*/
 /*const APP_NAME = "leo new";
@@ -249,15 +243,20 @@ module.exports = new function() {
                 logger.info('msg : ',msg);
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
-                //New Added by Surbhi S
-               /* const { serviceClientFactory, responseBuilder } = handlerInput;
-    
-      const upsServiceClient = serviceClientFactory.getUpsServiceClient();
-      const profileEmail = await upsServiceClient.getProfileEmail();
-     logger.info('Email:', profileEmail);*/
-      //const speechResponse = `Your email is, ${profileEmail}`;
-                //New Added by Surbhi E
-                if (!respondedToAlexa) {
+                
+                /*Surbhi Start*/
+                
+                const skillBuilder = Alexa1.SkillBuilders.custom();
+                exports.handler = skillBuilder
+                  .addRequestHandlers(
+                    LaunchRequestHandler
+                  )
+                  .withApiClient(new Alexa.DefaultApiClient())
+                  .lambda();
+                
+                /*Surbhi End*/
+               
+               if (!respondedToAlexa) {
                   navigableResponseToAlexa(resp);
                 } else {
                   logger.info("Already processed response");
