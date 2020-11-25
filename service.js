@@ -337,7 +337,7 @@ module.exports = new function() {
     );
     
 //Added by Surbhi - Begin
-    
+/*    
     const EmailIntentHandler = {
   canHandle(handlerInput) {
     return handlerInput.requestEnvelope.request.type === 'IntentRequest'
@@ -375,7 +375,7 @@ module.exports = new function() {
     }
   },
 }
-    
+ */   
 //Added by Surbhi - End
 
     alexa_app.launch(function (alexa_req, alexa_res) {
