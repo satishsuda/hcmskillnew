@@ -179,11 +179,14 @@ module.exports = new function() {
             var respModel;
             if (resp.messagePayload) {
               respModel = new MessageModel(resp.messagePayload);
+              logger.info('respModel : ',respModel);
             } else {
               // handle 1.0 webhook format as well
               respModel = new MessageModel(resp);
+              logger.info('respModel : ',resp);
             }
             var botMessages = session.get("botMessages");
+            logger.info("botMessages : ",botMessages);
             if (!Array.isArray(botMessages)) {
               botMessages = [];
             }
@@ -192,6 +195,7 @@ module.exports = new function() {
               botMenuResponseMap = {};
             }
             botMessages.push(respModel.messagePayload());
+            logger.info("botMenuResponseMap : ",botMenuResponseMap);
             session.set("botMessages", botMessages);
             session.set("botMenuResponseMap", Object.assign(botMenuResponseMap || {}, menuResponseMap(respModel.messagePayload())));
             let messageToAlexa = messageModelUtil.convertRespToText(respModel.messagePayload());
@@ -204,6 +208,7 @@ module.exports = new function() {
             return new Promise(function(resolve, reject){
               var commandResponse = function (msg, data) {
                 logger.info('Received callback message from webhook channel');
+                logger.info('msg : ',msg);
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
                 //New Added by Surbhi S
