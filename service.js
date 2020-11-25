@@ -16,48 +16,105 @@ const MessageModel = OracleBot.Lib.MessageModel;
 const messageModelUtil = OracleBot.Util.MessageModel;
 const botUtil = OracleBot.Util.Text;
 const webhookUtil = OracleBot.Util.Webhook;
-///
-const Alexa1 = require('ask-sdk');
-const LaunchRequestHandler = {
-  canHandle(handlerInput) {
-    return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
-  },
-  async handle(handlerInput) {
-    const PERMISSIONS = [
-      'alexa::profile:email:read'
-    ];
-    const { responseBuilder, serviceClientFactory } = handlerInput;
-    try {
-      const upsServiceClient = serviceClientFactory.getUpsServiceClient();  
-      const email = await upsServiceClient.getProfileEmail();        
-      console.log('email:' + email);
-      
-      const speechText = 'email address' + email;
-      return handlerInput.responseBuilder
-      .speak(speechText)
-      .getResponse();
-    } catch (error) {
-      if (error.name == 'ServiceError') {
-        console.log('ERROR StatusCode:' + error.statusCode + ' ' + error.message);
-      }
-      return responseBuilder
-        .speak(error.message)
-        .withAskForPermissionsConsentCard(PERMISSIONS)
-        .getResponse();
-    }
-  },
-};
 
-/////
-/*Added by Surbhi*/
-/*const APP_NAME = "leo new";
+//New Lines Start
+
+const Alexa1 = require('ask-sdk-core');
+const APP_NAME = "leo new";
 const messages = {
   NOTIFY_MISSING_PERMISSIONS: 'Please enable profile permissions in the Amazon Alexa app.',
   ERROR: 'Uh Oh. Looks like something went wrong.'
 };
 
-const EMAIL_PERMISSION = "alexa::profile:email:read";*/
-/*Added by Surbhi*/
+const FULL_NAME_PERMISSION = "alexa::profile:name:read";
+const EMAIL_PERMISSION = "alexa::profile:email:read";
+const MOBILE_PERMISSION = "alexa::profile:mobile_number:read";
+
+const LaunchRequestHandler = {
+  canHandle(handlerInput) {
+    return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
+  },
+  handle(handlerInput) {
+    const speechText = 'Hello. You can say: what is my name, what is my email, or, what is my phone number.';
+    const reprompt = 'say: what is my name, what is my email, or, what is my phone number.';
+
+    return handlerInput.responseBuilder
+      .speak(speechText)
+      .reprompt(reprompt)
+      .withSimpleCard(APP_NAME, speechText)
+      .getResponse();
+  },
+};
+
+const EmailIntentHandler = {
+  canHandle(handlerInput) {
+    return handlerInput.requestEnvelope.request.type === 'IntentRequest'
+      && handlerInput.requestEnvelope.request.intent.name === 'EmailIntent';
+  },
+  async handle(handlerInput) {
+    const { serviceClientFactory, responseBuilder } = handlerInput;
+    try {
+      const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+      const profileEmail = await upsServiceClient.getProfileEmail();
+      if (!profileEmail) {
+        const noEmailResponse = `It looks like you don\'t have an email set. You can set your email from the companion app.`
+        return responseBuilder
+                      .speak(noEmailResponse)
+                      .withSimpleCard(APP_NAME, noEmailResponse)
+                      .getResponse();
+      }
+      const speechResponse = `Your email is, ${profileEmail}`;
+      return responseBuilder
+                      .speak(speechResponse)
+                      .withSimpleCard(APP_NAME, speechResponse)
+                      .getResponse();
+    } catch (error) {
+      console.log(JSON.stringify(error));
+      if (error.statusCode == 403) {
+        return responseBuilder
+        .speak(messages.NOTIFY_MISSING_PERMISSIONS)
+        .withAskForPermissionsConsentCard([EMAIL_PERMISSION])
+        .getResponse();
+      }
+      console.log(JSON.stringify(error));
+      const response = responseBuilder.speak(messages.ERROR).getResponse();
+      return response;
+    }
+  },
+}
+
+const RequestLog = {
+  process(handlerInput) {
+    console.log(`REQUEST ENVELOPE = ${JSON.stringify(handlerInput.requestEnvelope)}`);
+  },
+};
+
+const ResponseLog = {
+  process(handlerInput) {
+    console.log(`RESPONSE BUILDER = ${JSON.stringify(handlerInput)}`);
+  },
+};
+
+const skillBuilder = Alexa1.SkillBuilders.custom();
+
+exports.handler = skillBuilder
+  .addRequestHandlers(
+    LaunchRequestHandler,
+    GreetMeIntentHandler,
+    EmailIntentHandler,
+    MobileIntentHandler,
+    HelpIntentHandler,
+    CancelAndStopIntentHandler,
+    SessionEndedRequestHandler
+  )
+  .addRequestInterceptors(RequestLog)
+  .addResponseInterceptors(ResponseLog)
+  .addErrorHandlers(ErrorHandler)
+  .withApiClient(new Alexa1.DefaultApiClient())
+  .lambda();
+
+
+//New Lines End
 
 module.exports = new function() {
   var self = this;
