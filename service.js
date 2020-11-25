@@ -207,12 +207,12 @@ module.exports = new function() {
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
                 //New Added by Surbhi S
-                /*
-                const upsServiceClient = serviceClientFactory.getUpsServiceClient();
-                const profileEmail = await upsServiceClient.getProfileEmail();
-                
-                logger.info('Email successfully retrieved '+ profileEmail);
-                */
+                const { serviceClientFactory, responseBuilder } = handlerInput;
+    
+      const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+      const profileEmail = await upsServiceClient.getProfileEmail();
+     logger.info('Email:', profileEmail);
+      //const speechResponse = `Your email is, ${profileEmail}`;
                 //New Added by Surbhi E
                 if (!respondedToAlexa) {
                   navigableResponseToAlexa(resp);
