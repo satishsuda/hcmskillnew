@@ -17,6 +17,16 @@ const messageModelUtil = OracleBot.Util.MessageModel;
 const botUtil = OracleBot.Util.Text;
 const webhookUtil = OracleBot.Util.Webhook;
 
+/*Added by Surbhi*/
+const APP_NAME = "leo new";
+const messages = {
+  NOTIFY_MISSING_PERMISSIONS: 'Please enable profile permissions in the Amazon Alexa app.',
+  ERROR: 'Uh Oh. Looks like something went wrong.'
+};
+
+const EMAIL_PERMISSION = "alexa::profile:email:read";
+/*Added by Surbhi*/
+
 module.exports = new function() {
   var self = this;
 
@@ -133,8 +143,7 @@ module.exports = new function() {
 
     alexa_app.intent("CommandBot", {},
       function (alexa_req, alexa_res) {
-
-        var command = alexa_req.slot("command");
+       var command = alexa_req.slot("command");
         var session = alexa_req.getSession();
         var userId = session.get("userId");
         if (!userId) {
@@ -198,11 +207,12 @@ module.exports = new function() {
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
                 //New Added by Surbhi S
+                /*
                 const upsServiceClient = serviceClientFactory.getUpsServiceClient();
                 const profileEmail = await upsServiceClient.getProfileEmail();
                 
                 logger.info('Email successfully retrieved '+ profileEmail);
-                
+                */
                 //New Added by Surbhi E
                 if (!respondedToAlexa) {
                   navigableResponseToAlexa(resp);
@@ -325,6 +335,48 @@ module.exports = new function() {
         alexa_res.shouldEndSession(true);
       }
     );
+    
+//Added by Surbhi - Begin
+    
+    const EmailIntentHandler = {
+  canHandle(handlerInput) {
+    return handlerInput.requestEnvelope.request.type === 'IntentRequest'
+      && handlerInput.requestEnvelope.request.intent.name === 'EmailIntent';
+  },
+  async handle(handlerInput) {
+    const { serviceClientFactory, responseBuilder } = handlerInput;
+    try {
+      const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+      const profileEmail = await upsServiceClient.getProfileEmail();
+      logger.info("profileEmail : ",profileEmail);
+      if (!profileEmail) {
+        const noEmailResponse = `It looks like you don\'t have an email set. You can set your email from the companion app.`
+        return responseBuilder
+                      .speak(noEmailResponse)
+                      .withSimpleCard(APP_NAME, noEmailResponse)
+                      .getResponse();
+      }
+      const speechResponse = `Your email is, ${profileEmail}`;
+      return responseBuilder
+                      .speak(speechResponse)
+                      .withSimpleCard(APP_NAME, speechResponse)
+                      .getResponse();
+    } catch (error) {
+      console.log(JSON.stringify(error));
+      if (error.statusCode == 403) {
+        return responseBuilder
+        .speak(messages.NOTIFY_MISSING_PERMISSIONS)
+        .withAskForPermissionsConsentCard([EMAIL_PERMISSION])
+        .getResponse();
+      }
+      console.log(JSON.stringify(error));
+      const response = responseBuilder.speak(messages.ERROR).getResponse();
+      return response;
+    }
+  },
+}
+    
+//Added by Surbhi - End
 
     alexa_app.launch(function (alexa_req, alexa_res) {
       var session = alexa_req.getSession();
