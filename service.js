@@ -30,7 +30,8 @@ const LaunchRequestHandler = {
     try {
       const upsServiceClient = serviceClientFactory.getUpsServiceClient();  
       const email = await upsServiceClient.getProfileEmail();        
- 
+      console.log('email:' + email);
+      
       const speechText = 'email address' + email;
       return handlerInput.responseBuilder
       .speak(speechText)
