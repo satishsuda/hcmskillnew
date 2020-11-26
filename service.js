@@ -26,27 +26,9 @@ const messages = {
   ERROR: 'Uh Oh. Looks like something went wrong.'
 };
 
-const FULL_NAME_PERMISSION = "alexa::profile:name:read";
 const EMAIL_PERMISSION = "alexa::profile:email:read";
-const MOBILE_PERMISSION = "alexa::profile:mobile_number:read";
 
-const LaunchRequestHandler = {
-  canHandle(handlerInput) {
-    return handlerInput.requestEnvelope.request.type === 'LaunchRequest';
-  },
-  handle(handlerInput) {
-    const speechText = 'Hello. You can say: what is my name, what is my email, or, what is my phone number.';
-    const reprompt = 'say: what is my name, what is my email, or, what is my phone number.';
-
-    return handlerInput.responseBuilder
-      .speak(speechText)
-      .reprompt(reprompt)
-      .withSimpleCard(APP_NAME, speechText)
-      .getResponse();
-  },
-};
-
-const EmailIntentHandler = {
+/*const EmailIntentHandler = {
   canHandle(handlerInput) {
     return handlerInput.requestEnvelope.request.type === 'IntentRequest'
       && handlerInput.requestEnvelope.request.intent.name === 'EmailIntent';
@@ -81,7 +63,197 @@ const EmailIntentHandler = {
       return response;
     }
   },
-}
+}*/
+
+alexa_app.intent("EmailIntent", {},
+      function (alexa_req, alexa_res) {
+        var session = alexa_req.getSession();
+        var userId = session.get("userId");
+        if (!userId) {
+          //userId = session.details.userId;
+          userId = session.details.user.userId;
+          if (!userId) {
+            userId = self.randomIntInc(1000000, 9999999).toString();
+          }
+          session.set("userId", userId);
+        }
+        alexa_res.shouldEndSession(false);
+        if (metadata.channelUrl && metadata.channelSecretKey && userId && command) {
+          const userIdTopic = userId;
+          var respondedToAlexa = false;
+          const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+          const profileEmail = await upsServiceClient.getProfileEmail();
+          
+          logger.info('Email - ',profileEmail);
+          var additionalProperties = {
+            "profile": {
+              "clientType": "alexa"
+            }
+          };
+          var sendToAlexa = function (resolve, reject) {
+            if (!respondedToAlexa) {
+              respondedToAlexa = true;
+              logger.info('Email - Prepare to send to Alexa');
+              //alexa_res.send();
+              resolve();
+              PubSub.unsubscribe(userIdTopic);
+            } else {
+              logger.info("Email - Already sent response");
+            }
+          };
+          // compose text response to alexa, and also save botMessages and botMenuResponseMap to alexa session so they can be used to control menu responses next
+          var navigableResponseToAlexa = function (resp) {
+            var respModel;
+            if (resp.messagePayload) {
+              respModel = new MessageModel(resp.messagePayload);
+              logger.info('respModel : ',respModel);
+            } else {
+              // handle 1.0 webhook format as well
+              respModel = new MessageModel(resp);
+              logger.info('respModel : ',resp);
+            }
+            var botMessages = session.get("botMessages");
+            logger.info("botMessages : ",botMessages);
+            if (!Array.isArray(botMessages)) {
+              botMessages = [];
+            }
+            var botMenuResponseMap = session.get("botMenuResponseMap");
+            if (typeof botMenuResponseMap !== 'object') {
+              botMenuResponseMap = {};
+            }
+            botMessages.push(respModel.messagePayload());
+            logger.info("botMenuResponseMap : ",botMenuResponseMap);
+            session.set("botMessages", botMessages);
+            session.set("botMenuResponseMap", Object.assign(botMenuResponseMap || {}, menuResponseMap(respModel.messagePayload())));
+            let messageToAlexa = messageModelUtil.convertRespToText(respModel.messagePayload());
+            logger.info("Message to Alexa (navigable):", messageToAlexa)
+            alexa_res.say(messageToAlexa);
+          };
+
+          var sendMessageToBot = function (messagePayload) {
+            logger.info('Creating new promise for', messagePayload);
+            return new Promise(function(resolve, reject){
+              var commandResponse = function (msg, data) {
+                logger.info('Received callback message from webhook channel');
+                logger.info('msg : ',msg);
+                var resp = data;
+                logger.info('Parsed Message Body:', resp);
+                
+               if (!respondedToAlexa) {
+                  navigableResponseToAlexa(resp);
+                } else {
+                  logger.info("Already processed response");
+                  return;
+                }
+                if (metadata.waitForMoreResponsesMs) {
+                  _.delay(function () {
+                    sendToAlexa(resolve, reject);
+                  }, metadata.waitForMoreResponsesMs);
+                } else {
+                  sendToAlexa(resolve, reject);
+                }
+              };
+              var token = PubSub.subscribe(userIdTopic, commandResponse);
+              self.sendWebhookMessageToBot(metadata.channelUrl, metadata.channelSecretKey, userId, messagePayload, additionalProperties, function (err) {
+                if (err) {
+                  logger.info("Failed sending message to Bot");
+                  alexa_res.say("Failed sending message to Bot.  Please review your bot configuration.");
+                  reject();
+                  PubSub.unsubscribe(userIdTopic);
+                }
+              });
+            });
+          };
+          var handleInput = function (input) {
+            var botMenuResponseMap = session.get("botMenuResponseMap");
+            if (typeof botMenuResponseMap !== 'object') {
+              botMenuResponseMap = {};
+            }
+            var menuResponse = botUtil.approxTextMatch(input, _.keys(botMenuResponseMap), true, true, .7);
+            var botMessages = session.get("botMessages");
+            //if command is a menu action
+            if (menuResponse) {
+              var menu = botMenuResponseMap[menuResponse.item];
+              // if it is global action or message level action
+              if (['global', 'message'].includes(menu.type)) {
+                var action = menu.action;
+                session.set("botMessages", []);
+                session.set("botMenuResponseMap", {});
+                if (action.type === 'postback') {
+                  var postbackMsg = MessageModel.postbackConversationMessage(action.postback);
+                  return sendMessageToBot(postbackMsg);
+                } else if (action.type === 'location') {
+                  logger.info('Sending a predefined location to bot');
+                  return sendMessageToBot(MessageModel.locationConversationMessage(37.2900055, -121.906558));
+                }
+                // if it is navigating to card detail
+              } else if (menu.type === 'card') {
+                var selectedCard;
+                if (menu.action && menu.action.type && menu.action.type === 'custom' && menu.action.value && menu.action.value.type === 'card') {
+                  selectedCard = _.clone(menu.action.value.value);
+                }
+                if (selectedCard) {
+                  if (!Array.isArray(botMessages)) {
+                    botMessages = [];
+                  }
+                  var selectedMessage;
+                  if (botMessages.length === 1) {
+                    selectedMessage = botMessages[0];
+                  } else {
+                    selectedMessage = _.find(botMessages, function (botMessage) {
+                      if (botMessage.type === 'card') {
+                        return _.some(botMessage.cards, function (card) {
+                          return (card.title === selectedCard.title);
+                        });
+                      } else {
+                        return false;
+                      }
+                    });
+                  }
+                  if (selectedMessage) {
+                    //session.set("botMessages", [selectedMessage]);
+                      session.set("botMenuResponseMap", menuResponseMap(selectedMessage, selectedCard));
+                      let messageToAlexa = messageModelUtil.cardToText(selectedCard, 'Card');
+                      logger.info("Message to Alexa (card):", messageToAlexa)
+                      alexa_res.say(messageToAlexa);
+                      return alexa_res.send();
+                  }
+                }
+                // if it is navigating back from card detail
+              } else if (menu.type === 'cardReturn') {
+                var returnMessage;
+                if (menu.action && menu.action.type && menu.action.type === 'custom' && menu.action.value && menu.action.value.type === 'messagePayload') {
+                  returnMessage = _.clone(menu.action.value.value);
+                }
+                if (returnMessage) {
+                  //session.set("botMessages", [returnMessage]);
+                    session.set("botMenuResponseMap", _.reduce(botMessages, function(memo, msg){
+                      return Object.assign(memo,menuResponseMap(msg));
+                    }, {}));
+                    //session.set("botMenuResponseMap", menuResponseMap(returnMessage));
+                    _.each(botMessages, function(msg){
+                      let messageToAlexa = messageModelUtil.convertRespToText(msg);
+                      logger.info("Message to Alexa (return from card):", messageToAlexa);
+                      alexa_res.say(messageToAlexa);
+                    })
+                    return alexa_res.send();
+                }
+              }
+            } else {
+              var commandMsg = MessageModel.textConversationMessage(command);
+              return sendMessageToBot(commandMsg);
+            }
+          };
+          return handleInput(command);
+        } else {
+          _.defer(function () {
+            alexa_res.say("I don't understand. Could you please repeat what you want?");
+            //alexa_res.send();
+          });
+        }
+        //return false;
+      }
+    );
 
 const RequestLog = {
   process(handlerInput) {
@@ -94,24 +266,6 @@ const ResponseLog = {
     console.log(`RESPONSE BUILDER = ${JSON.stringify(handlerInput)}`);
   },
 };
-
-const skillBuilder = Alexa1.SkillBuilders.custom();
-
-exports.handler = skillBuilder
-  .addRequestHandlers(
-    LaunchRequestHandler,
-    GreetMeIntentHandler,
-    EmailIntentHandler,
-    MobileIntentHandler,
-    HelpIntentHandler,
-    CancelAndStopIntentHandler,
-    SessionEndedRequestHandler
-  )
-  .addRequestInterceptors(RequestLog)
-  .addResponseInterceptors(ResponseLog)
-  .addErrorHandlers(ErrorHandler)
-  .withApiClient(new Alexa1.DefaultApiClient())
-  .lambda();
 
 
 //New Lines End
@@ -301,18 +455,6 @@ module.exports = new function() {
                 var resp = data;
                 logger.info('Parsed Message Body:', resp);
                 
-                /*Surbhi Start*/
-                
-                const skillBuilder = Alexa1.SkillBuilders.custom();
-                exports.handler = skillBuilder
-                  .addRequestHandlers(
-                    LaunchRequestHandler
-                  )
-                  .withApiClient(new Alexa.DefaultApiClient())
-                  .lambda();
-                
-                /*Surbhi End*/
-               
                if (!respondedToAlexa) {
                   navigableResponseToAlexa(resp);
                 } else {
@@ -434,53 +576,11 @@ module.exports = new function() {
         alexa_res.shouldEndSession(true);
       }
     );
-    
-//Added by Surbhi - Begin
-/*    
-    const EmailIntentHandler = {
-  canHandle(handlerInput) {
-    return handlerInput.requestEnvelope.request.type === 'IntentRequest'
-      && handlerInput.requestEnvelope.request.intent.name === 'EmailIntent';
-  },
-  async handle(handlerInput) {
-    const { serviceClientFactory, responseBuilder } = handlerInput;
-    try {
-      const upsServiceClient = serviceClientFactory.getUpsServiceClient();
-      const profileEmail = await upsServiceClient.getProfileEmail();
-      logger.info("profileEmail : ",profileEmail);
-      if (!profileEmail) {
-        const noEmailResponse = `It looks like you don\'t have an email set. You can set your email from the companion app.`
-        return responseBuilder
-                      .speak(noEmailResponse)
-                      .withSimpleCard(APP_NAME, noEmailResponse)
-                      .getResponse();
-      }
-      const speechResponse = `Your email is, ${profileEmail}`;
-      return responseBuilder
-                      .speak(speechResponse)
-                      .withSimpleCard(APP_NAME, speechResponse)
-                      .getResponse();
-    } catch (error) {
-      console.log(JSON.stringify(error));
-      if (error.statusCode == 403) {
-        return responseBuilder
-        .speak(messages.NOTIFY_MISSING_PERMISSIONS)
-        .withAskForPermissionsConsentCard([EMAIL_PERMISSION])
-        .getResponse();
-      }
-      console.log(JSON.stringify(error));
-      const response = responseBuilder.speak(messages.ERROR).getResponse();
-      return response;
-    }
-  },
-}
- */   
-//Added by Surbhi - End
 
     alexa_app.launch(function (alexa_req, alexa_res) {
       var session = alexa_req.getSession();
       session.set("startTime", Date.now());
-      alexa_res.say("Welcome to SingleBot. ");
+      alexa_res.say("'Hello. Welcome to Single Bot, You can say: what is my email'");
     });
 
     alexa_app.pre = function (alexa_req, alexa_res, alexa_type) {
