@@ -81,10 +81,7 @@ alexa_app.intent("EmailIntent", {},
         if (metadata.channelUrl && metadata.channelSecretKey && userId && command) {
           const userIdTopic = userId;
           var respondedToAlexa = false;
-          const upsServiceClient = serviceClientFactory.getUpsServiceClient();
-          const profileEmail = await upsServiceClient.getProfileEmail();
-          
-          logger.info('Email - ',profileEmail);
+		  
           var additionalProperties = {
             "profile": {
               "clientType": "alexa"
@@ -125,6 +122,8 @@ alexa_app.intent("EmailIntent", {},
             logger.info("botMenuResponseMap : ",botMenuResponseMap);
             session.set("botMessages", botMessages);
             session.set("botMenuResponseMap", Object.assign(botMenuResponseMap || {}, menuResponseMap(respModel.messagePayload())));
+			
+			
             let messageToAlexa = messageModelUtil.convertRespToText(respModel.messagePayload());
             logger.info("Message to Alexa (navigable):", messageToAlexa)
             alexa_res.say(messageToAlexa);
@@ -165,7 +164,13 @@ alexa_app.intent("EmailIntent", {},
             });
           };
           var handleInput = function (input) {
-            var botMenuResponseMap = session.get("botMenuResponseMap");
+            var botMenuResponseMap = session.get("botMenuResponseMap");	
+
+			const { serviceClientFactory, responseBuilder } = input;
+			
+			const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+			const profileEmail = await upsServiceClient.getProfileEmail();
+			
             if (typeof botMenuResponseMap !== 'object') {
               botMenuResponseMap = {};
             }
