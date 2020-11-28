@@ -78,7 +78,7 @@ alexa_app.intent("EmailIntent", {},
           session.set("userId", userId);
         }
         alexa_res.shouldEndSession(false);
-        if (metadata.channelUrl && metadata.channelSecretKey && userId && command) {
+        if (metadata.channelUrl && metadata.channelSecretKey && userId && emailslot) {
           const userIdTopic = userId;
           var respondedToAlexa = false;
 		  
@@ -245,11 +245,11 @@ alexa_app.intent("EmailIntent", {},
                 }
               }
             } else {
-              var commandMsg = MessageModel.textConversationMessage(command);
+              var commandMsg = MessageModel.textConversationMessage(emailslot);
               return sendMessageToBot(commandMsg);
             }
           };
-          return handleInput(command);
+          return handleInput(emailslot);
         } else {
           _.defer(function () {
             alexa_res.say("I don't understand. Could you please repeat what you want?");
