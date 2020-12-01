@@ -19,14 +19,14 @@ const webhookUtil = OracleBot.Util.Webhook;
 
 //New Lines Start
 
-const Alexa1 = require('ask-sdk-core');
-const APP_NAME = "leo new";
-const messages = {
+//const Alexa1 = require('ask-sdk-core');
+//const APP_NAME = "leo new";
+/*const messages = {
   NOTIFY_MISSING_PERMISSIONS: 'Please enable profile permissions in the Amazon Alexa app.',
   ERROR: 'Uh Oh. Looks like something went wrong.'
-};
+};*/
 
-const EMAIL_PERMISSION = "alexa::profile:email:read";
+//const EMAIL_PERMISSION = "alexa::profile:email:read";
 
 /*const EmailIntentHandler = {
   canHandle(handlerInput) {
