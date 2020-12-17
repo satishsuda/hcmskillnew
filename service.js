@@ -209,7 +209,7 @@ module.exports = new function() {
           };
 
           var sendMessageToBot = function (messagePayload) {
-            logger.info('Creating new promise for', messagePayload);
+            logger.info('Creating new promise for', messagePayload||userID);
             return new Promise(function(resolve, reject){
               var commandResponse = function (msg, data) {
                 logger.info('Received callback message from webhook channel');
